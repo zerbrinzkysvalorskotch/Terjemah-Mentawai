@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ngangan Aman Tawe – Terjemah Bahasa Mentawai</title>
+<style>
+  :root {
+    --bg: #f0fdf0;
+    --card: #ffffff;
+    --text: #111111;
+    --muted: #6b7280;
+    --line: #111111;
+    --accent: #5db3a8;
+    --field: #ffffff;
+    --field-out: #eeeeee;
+    --border: #c9c9c9;
+    --shadow: rgba(0, 0, 0, .18);
+    --footer: #ffffff;
+    --btn: #eeeeee;
+  }
+  :root[data-theme="dark"] {
+    --bg: #101a16;
+    --card: #1a2621;
+    --text: #eef3f0;
+    --muted: #9db0a7;
+    --line: #eef3f0;
+    --accent: #3f8f85;
+    --field: #14201b;
+    --field-out: #223029;
+    --border: #3a4c44;
+    --shadow: rgba(0, 0, 0, .5);
+    --footer: #17221d;
+    --btn: #223029;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    transition: background .2s, color .2s;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
+  header { display: flex; align-items: center; gap: 14px; padding: 24px 0 14px; border-bottom: 2px solid var(--line); }
+  header .logo { width: 48px; height: 48px; border-radius: 8px; flex: none; }
+  header h1 { font-size: 1.35rem; font-weight: 500; margin: 0; flex: 1; }
+  #tema {
+    width: 44px; height: 44px; border-radius: 6px; border: 0; cursor: pointer;
+    background: #000; color: #ffd54a; display: grid; place-items: center; flex: none;
+  }
+  #tema svg { width: 26px; height: 26px; }
+  :root[data-theme="dark"] #tema { background: #fff; }
+  #tema:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+
+  .hero { text-align: center; padding: 28px 0 8px; }
+  .pill { display: inline-block; background: var(--accent); color: #fff; padding: 6px 34px; border-radius: 999px; font-size: 1.05rem; }
+  .hero h2 { font-size: clamp(1.7rem, 5vw, 2.4rem); font-weight: 500; margin: 18px 0 26px; }
+
+  .panel { background: var(--card); border-radius: 18px; padding: 28px; box-shadow: 0 8px 18px var(--shadow); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .col label { display: block; color: var(--muted); font-size: 1.15rem; margin-bottom: 10px; }
+  select {
+    width: 100%; padding: 11px 12px; font-size: 1rem; color: var(--text); background: var(--field);
+    border: 1px solid var(--border); border-radius: 5px;
+  }
+  textarea {
+    width: 100%; height: 220px; margin-top: 12px; padding: 12px; resize: vertical; font: inherit; font-size: 1.05rem;
+    color: var(--text); background: var(--field); border: 1px solid var(--border); border-radius: 5px;
+  }
+  textarea::placeholder { color: var(--muted); }
+  #hasil { background: var(--field-out); }
+  .info { margin: 14px 0 0; font-size: .92rem; color: var(--muted); min-height: 1.3em; }
+
+  h3.judul { text-align: center; font-size: clamp(1.6rem, 4.5vw, 2.1rem); font-weight: 500; margin: 56px 0 24px; }
+  .buku { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .kartu {
+    background: var(--card); border-radius: 12px; box-shadow: 0 6px 14px var(--shadow);
+    min-height: 136px; padding: 20px 22px; display: flex; gap: 20px; align-items: center;
+  }
+  .kartu svg { width: 74px; flex: none; }
+  .kartu .teks { flex: 1; }
+  .kartu .teks b { display: block; font-weight: 500; font-size: 1.25rem; line-height: 1.2; padding-bottom: 12px; border-bottom: 2px solid var(--line); }
+  .kartu .teks span { display: block; margin-top: 10px; color: var(--muted); font-size: 1.1rem; }
+
+  footer { margin-top: 64px; background: var(--footer); padding: 36px 0 48px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; justify-content: space-between; }
+  .aksi { display: grid; gap: 10px; width: min(100%, 400px); }
+  .aksi button {
+    display: flex; justify-content: space-between; align-items: center; font: inherit; font-size: 1.15rem;
+    padding: 6px 14px; background: var(--btn); color: var(--text); border: 1px solid var(--border); border-radius: 5px; cursor: pointer;
+  }
+  .logo-mitra { display: flex; align-items: center; gap: 20px; }
+  .logo-mitra .sil { width: 64px; height: 64px; background: #0b6bb5; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 1.5rem; }
+  .logo-mitra .elp { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 2.2rem; letter-spacing: -1px; }
+  .logo-mitra .elp i { width: 44px; height: 44px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #8bd1a3 0 30%, #4a8ea3 31% 62%, #7a2531 63%); }
+
+  @media (max-width: 640px) {
+    .cols, .buku { grid-template-columns: 1fr; }
+    .panel { padding: 20px; }
+    textarea { height: 150px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+      <rect width="48" height="48" rx="8" fill="#5db3a8"/>
+      <path d="M24 5c-5 6-8 14-6 22 1 4 4 7 6 10 2-3 5-6 6-10 2-8-1-16-6-22z" fill="#c2268f"/>
+      <path d="M24 9v36" stroke="#7a1558" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <h1>Ngangan Aman Tawe</h1>
+    <button id="tema" type="button" aria-label="Ganti mode gelap atau terang"></button>
+  </header>
+
+  <section class="hero">
+    <span class="pill">Gratis dan Terbuka</span>
+    <h2>Terjemah Bahasa Mentawai</h2>
+  </section>
+
+  <section class="panel" aria-label="Penerjemah">
+    <div class="cols">
+      <div class="col">
+        <label for="sumber">Bahasa Sumber</label>
+        <select id="sumber">
+          <option value="">Pilih bahasa</option>
+          <option value="id">Indonesia</option>
+          <option value="mtw">Mentawai</option>
+        </select>
+        <textarea id="input" placeholder="Ketik atau tempel teks di sini"></textarea>
+      </div>
+      <div class="col">
+        <label for="sasaran">Bahasa Sasaran</label>
+        <select id="sasaran">
+          <option value="">Pilih bahasa</option>
+          <option value="id">Indonesia</option>
+          <option value="mtw">Mentawai</option>
+        </select>
+        <textarea id="hasil" placeholder="Hasil terjemahan" readonly></textarea>
+      </div>
+    </div>
+    <p class="info" id="info" aria-live="polite"></p>
+  </section>
+
+  <h3 class="judul">Buku dan Pustaka</h3>
+  <section class="buku">
+    <div class="kartu">
+      <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg>
+      <div class="teks"><b>Gramatika Bahasa Mentawai</b><span>Bahasa Sumber</span></div>
+    </div>
+    <div class="kartu"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg></div>
+    <div class="kartu"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg></div>
+    <div class="kartu"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg></div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="aksi">
+      <button type="button">Saran dan kritik <span>›</span></button>
+      <button type="button">Kontribusi <span>›</span></button>
+    </div>
+    <div class="logo-mitra" aria-label="Logo contoh mitra">
+      <div class="sil">SIL</div>
+      <div class="elp"><i></i>ELP</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   KAMUS — isi dengan entri yang sudah divalidasi penutur.
+   Format: [indonesia, mentawai]. Satu baris = satu makna.
+   Dua baris di bawah hanya CONTOH untuk uji tampilan;
+   harap diverifikasi atau diganti.
+   ============================================================ */
+// Sumber kamus: nama berkas di repo yang sama, ATAU link CSV Google Sheets
+// (Sheets → File → Bagikan → Publikasikan ke web → pilih CSV → salin link).
+// Kolom wajib bernama: indonesia, mentawai
+const SUMBER_KAMUS = "kamus.csv";
+let statusKamus = "";
+
+// Kamus cadangan, dipakai hanya jika berkas/link gagal dimuat.
+let KAMUS = [
+  ["rumah adat", "uma"],
+  ["tabib adat", "sikerei"]
+];
+
+function bacaCSV(teks) {
+  const baris = [];
+  let sel = "", rec = [], kutip = false;
+  for (let i = 0; i < teks.length; i++) {
+    const c = teks[i];
+    if (kutip) {
+      if (c === '"' && teks[i + 1] === '"') { sel += '"'; i++; }
+      else if (c === '"') kutip = false;
+      else sel += c;
+    } else if (c === '"') kutip = true;
+    else if (c === ",") { rec.push(sel); sel = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && teks[i + 1] === "\n") i++;
+      rec.push(sel); sel = "";
+      if (rec.some((x) => x.trim())) baris.push(rec);
+      rec = [];
+    } else sel += c;
+  }
+  rec.push(sel);
+  if (rec.some((x) => x.trim())) baris.push(rec);
+  return baris;
+}
+
+async function muatKamus() {
+  try {
+    const res = await fetch(SUMBER_KAMUS, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const tabel = bacaCSV((await res.text()).replace(/^\uFEFF/, ""));
+    const kepala = tabel[0].map((h) => h.trim().toLowerCase());
+    const a = kepala.indexOf("indonesia"), b = kepala.indexOf("mentawai");
+    if (a < 0 || b < 0) throw new Error("kolom 'indonesia' dan 'mentawai' tidak ditemukan");
+    KAMUS = tabel.slice(1)
+      .filter((r) => (r[a] || "").trim() && (r[b] || "").trim())
+      .map((r) => [r[a].trim(), r[b].trim()]);
+    statusKamus = KAMUS.length + " entri kamus dimuat.";
+  } catch (e) {
+    statusKamus = "Kamus tidak dapat dimuat (" + e.message + "), memakai kamus cadangan.";
+  }
+  perbarui();
+}
+
+const NAMA = { id: "Indonesia", mtw: "Mentawai" };
+const $ = (id) => document.getElementById(id);
+
+/* ---------- Mode gelap / terang ---------- */
+const BULAN = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a.5.5 0 0 0-.7-.5A9.5 9.5 0 1 0 20.5 15.2a.5.5 0 0 0-.5-.7z"/></svg>';
+const MATAHARI = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></g></svg>';
+
+function setTema(t) {
+  document.documentElement.dataset.theme = t;
+  $("tema").innerHTML = t === "dark" ? MATAHARI : BULAN;
+  $("tema").style.color = t === "dark" ? "#f59e0b" : "#ffd54a";
+  try { localStorage.setItem("tema", t); } catch (e) {}
+}
+let temaAwal = "light";
+try { temaAwal = localStorage.getItem("tema") || "light"; } catch (e) {}
+setTema(temaAwal);
+$("tema").addEventListener("click", () => {
+  setTema(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
+
+/* ---------- Penerjemah ---------- */
+const MAKS_FRASA = 4;
+
+function bangunKamus(dari, ke) {
+  const idx = dari === "id" ? 0 : 1;
+  const tujuan = dari === "id" ? 1 : 0;
+  const peta = new Map();
+  KAMUS.forEach((baris) => {
+    const kunci = baris[idx].toLowerCase().trim();
+    if (!peta.has(kunci)) peta.set(kunci, baris[tujuan]);
+  });
+  return peta;
+}
+
+function terjemah(teks, dari, ke) {
+  const peta = bangunKamus(dari, ke);
+  const token = teks.match(/[\p{L}\p{N}'’-]+|[^\p{L}\p{N}\s]|\s+/gu) || [];
+  const kata = [];
+  const hasil = [];
+  let tidakAda = new Set();
+
+  // kumpulkan indeks token berupa kata
+  token.forEach((t, i) => { if (/[\p{L}\p{N}]/u.test(t)) kata.push(i); });
+
+  let k = 0;
+  const diganti = {};
+  while (k < kata.length) {
+    let ketemu = false;
+    for (let n = Math.min(MAKS_FRASA, kata.length - k); n >= 1; n--) {
+      const frasa = kata.slice(k, k + n).map((i) => token[i]).join(" ").toLowerCase();
+      if (peta.has(frasa)) {
+        diganti[kata[k]] = { akhir: kata[k + n - 1], teks: peta.get(frasa) };
+        k += n; ketemu = true; break;
+      }
+    }
+    if (!ketemu) {
+      tidakAda.add(token[kata[k]]);
+      diganti[kata[k]] = { akhir: kata[k], teks: "[" + token[kata[k]] + "]" };
+      k++;
+    }
+  }
+
+  for (let i = 0; i < token.length; i++) {
+    if (diganti[i]) { hasil.push(diganti[i].teks); i = diganti[i].akhir; }
+    else hasil.push(token[i]);
+  }
+  return { teks: hasil.join(""), tidakAda: [...tidakAda] };
+}
+
+function perbarui() {
+  const dari = $("sumber").value, ke = $("sasaran").value, teks = $("input").value;
+  const info = $("info"), keluar = $("hasil");
+  if (!dari || !ke) { keluar.value = ""; info.textContent = "Pilih bahasa sumber dan bahasa sasaran."; return; }
+  if (dari === ke) { keluar.value = ""; info.textContent = "Bahasa sumber dan sasaran harus berbeda."; return; }
+  if (!teks.trim()) { keluar.value = ""; info.textContent = statusKamus; return; }
+  const r = terjemah(teks, dari, ke);
+  keluar.value = r.teks;
+  info.textContent = r.tidakAda.length
+    ? "Belum ada di kamus: " + r.tidakAda.join(", ")
+    : "Semua kata ditemukan di kamus.";
+}
+
+// jika kedua pilihan sama, balikkan yang satunya
+function jagaBeda(diubah, satunya) {
+  if ($(diubah).value && $(diubah).value === $(satunya).value) {
+    $(satunya).value = $(diubah).value === "id" ? "mtw" : "id";
+  }
+  perbarui();
+}
+$("sumber").addEventListener("change", () => jagaBeda("sumber", "sasaran"));
+$("sasaran").addEventListener("change", () => jagaBeda("sasaran", "sumber"));
+$("input").addEventListener("input", perbarui);
+
+// nilai awal: Indonesia → Mentawai
+$("sumber").value = "id";
+$("sasaran").value = "mtw";
+muatKamus();
+</script>
+</body>
+</html>
