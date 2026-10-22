@@ -185,7 +185,7 @@ const SHEET_ID = "1qu5Esyk7l__lz-hz9FVrPgT-_oUvCZNPWDUOdh_cke0";
 // Nama tab yang dimuat, PERSIS sama dengan nama tab di Google Sheets.
 // Urutan penting: jika satu kata ada di dua tab, tab yang lebih dulu dipakai.
 // Setelah tab dipisah, ganti dengan mis. ["Nomina", "Verba", "Adjektiva", "Campuran"]
-const TAB_KAMUS = ["nomina", "verba", "adjektiva", "campuran"];
+const TAB_KAMUS = ["Sheet1"];
 let statusKamus = "";
 const SUMBER_IMBUHAN = "imbuhan.csv";
 const SUMBER_SANDHI = "sandhi.csv";
@@ -441,15 +441,18 @@ function terjemah(teks, dari, ke) {
   let k = 0;
   while (k < kata.length) {
     const w = token[kata[k]].toLowerCase();
-    // 1. kata pengimbuh (sedang, yang, tanpa) + kata sesudahnya
+    // 1. kata pengimbuh (sedang, yang, tanpa) + kata/frasa sesudahnya
     const rk = dari === "id" && k + 1 < kata.length && IMBUHAN.find((r) => r.jenis === "kata" && r.id === w);
     if (rk) {
-      const sub = cari(token[kata[k + 1]]);
-      if (sub !== null) {
-        diganti[kata[k]] = { akhir: kata[k + 1], teks: tempelMTW(rk.mentawai, sub) };
-        k += 2;
-        continue;
+      let selesai = false;
+      for (let n = Math.min(MAKS_FRASA - 1, kata.length - k - 1); n >= 1; n--) {
+        const sub = cari(kata.slice(k + 1, k + 1 + n).map((i) => token[i]).join(" "));
+        if (sub !== null) {
+          diganti[kata[k]] = { akhir: kata[k + n], teks: tempelMTW(rk.mentawai, sub) };
+          k += n + 1; selesai = true; break;
+        }
       }
+      if (selesai) continue;
     }
     // 2. kata atau frasa langsung dari kamus
     let ketemu = false;
@@ -461,6 +464,17 @@ function terjemah(teks, dari, ke) {
       }
     }
     if (ketemu) continue;
+    // 2b. frasa berimbuhan: awalan menempel di kata pertama (menghela napas -> mualakenga)
+    if (dari === "id") {
+      for (let n = Math.min(MAKS_FRASA, kata.length - k); n >= 2; n--) {
+        const h2 = cari(kata.slice(k, k + n).map((i) => token[i]).join(" "));
+        if (h2 !== null) {
+          diganti[kata[k]] = { akhir: kata[k + n - 1], teks: h2 };
+          k += n; ketemu = true; break;
+        }
+      }
+      if (ketemu) continue;
+    }
     // 3. bentuk berimbuhan
     const h = cari(token[kata[k]]);
     if (h !== null) diganti[kata[k]] = { akhir: kata[k], teks: h };
