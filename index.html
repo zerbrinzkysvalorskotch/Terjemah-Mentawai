@@ -181,8 +181,14 @@
 // Sumber kamus: nama berkas di repo yang sama, ATAU link CSV Google Sheets
 // (Sheets → File → Bagikan → Publikasikan ke web → pilih CSV → salin link).
 // Kolom wajib bernama: indonesia, mentawai
-const SUMBER_KAMUS = "kamus.csv";
+const SHEET_ID = "1qu5Esyk7l__lz-hz9FVrPgT-_oUvCZNPWDUOdh_cke0";
+// Nama tab yang dimuat, PERSIS sama dengan nama tab di Google Sheets.
+// Urutan penting: jika satu kata ada di dua tab, tab yang lebih dulu dipakai.
+// Setelah tab dipisah, ganti dengan mis. ["Nomina", "Verba", "Adjektiva", "Campuran"]
+const TAB_KAMUS = ["Sheet1"];
 let statusKamus = "";
+const SUMBER_IMBUHAN = "imbuhan.csv";
+const SUMBER_SANDHI = "sandhi.csv";
 
 /* ============================================================
    TAUTAN — isi dengan link asli. Kosongkan ("") jika belum ada.
@@ -203,9 +209,10 @@ const BUKU = [
 ];
 
 // Kamus cadangan, dipakai hanya jika berkas/link gagal dimuat.
+// Bentuk: [[sinonim Indonesia...], [bentuk Mentawai...]]
 let KAMUS = [
-  ["rumah adat", "uma"],
-  ["tabib adat", "sikerei"]
+  [["rumah adat"], ["uma"]],
+  [["tabib adat"], ["sikerei"]]
 ];
 
 function bacaCSV(teks) {
@@ -232,19 +239,39 @@ function bacaCSV(teks) {
 }
 
 async function muatKamus() {
-  try {
-    const res = await fetch(SUMBER_KAMUS, { cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const tabel = bacaCSV((await res.text()).replace(/^\uFEFF/, ""));
-    const kepala = tabel[0].map((h) => h.trim().toLowerCase());
-    const a = kepala.indexOf("indonesia"), b = kepala.indexOf("mentawai");
-    if (a < 0 || b < 0) throw new Error("kolom 'indonesia' dan 'mentawai' tidak ditemukan");
-    KAMUS = tabel.slice(1)
-      .filter((r) => (r[a] || "").trim() && (r[b] || "").trim())
-      .map((r) => [r[a].trim(), r[b].trim()]);
-    statusKamus = KAMUS.length + " entri kamus dimuat.";
-  } catch (e) {
-    statusKamus = "Kamus tidak dapat dimuat (" + e.message + "), memakai kamus cadangan.";
+  const ANGKA_ATAS = /[¹²³⁴⁵⁶⁷⁸⁹⁰]/g;
+  const hasilTab = new Array(TAB_KAMUS.length).fill(null);
+  const gagal = [];
+  await Promise.all(TAB_KAMUS.map(async (nama, i) => {
+    try {
+      const url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID +
+        "/gviz/tq?tqx=out:csv&headers=1&sheet=" + encodeURIComponent(nama);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const tabel = bacaCSV((await res.text()).replace(/^\uFEFF/, ""));
+      const kepala = tabel[0].map((h) => h.trim().toLowerCase());
+      const a = kepala.indexOf("indonesia"), b = kepala.indexOf("mentawai"), c = kepala.indexOf("kelas");
+      if (a < 0 || b < 0) throw new Error("kolom 'indonesia' dan 'mentawai' tidak ditemukan");
+      // kelas: kolom "kelas" per baris > label di pojok (sel A1) > nama tab
+      const kelasTab = normKelas(tabel[0][0]) || normKelas(nama);
+      const baris = [];
+      tabel.slice(1).forEach((r) => {
+        const id = (r[a] || "").split(/[;,]/).map((x) => x.trim()).filter(Boolean);
+        const mt = (r[b] || "").split(";").map((x) => x.replace(ANGKA_ATAS, "").trim()).filter(Boolean);
+        if (id.length && mt.length) baris.push([id, mt, (c >= 0 && normKelas(r[c])) || kelasTab]);
+      });
+      hasilTab[i] = baris;
+    } catch (e) {
+      gagal.push(nama + " (" + e.message + ")");
+    }
+  }));
+  const dimuat = hasilTab.filter(Boolean);
+  if (dimuat.length) {
+    KAMUS = [].concat(...dimuat);
+    statusKamus = KAMUS.length + " entri kamus dimuat dari " + dimuat.length + " tab." +
+      (gagal.length ? " Gagal: " + gagal.join(", ") + "." : "");
+  } else {
+    statusKamus = "Kamus tidak dapat dimuat (" + gagal.join(", ") + "), memakai kamus cadangan.";
   }
   perbarui();
 }
@@ -272,63 +299,217 @@ $("tema").addEventListener("click", () => {
 /* ---------- Penerjemah ---------- */
 const MAKS_FRASA = 4;
 
-function bangunKamus(dari, ke) {
-  const idx = dari === "id" ? 0 : 1;
-  const tujuan = dari === "id" ? 1 : 0;
+function bangunKamus(dari) {
   const peta = new Map();
-  KAMUS.forEach((baris) => {
-    const kunci = baris[idx].toLowerCase().trim();
-    if (!peta.has(kunci)) peta.set(kunci, baris[tujuan]);
+  if (dari === "id") KELAS_ID = new Map();
+  KAMUS.forEach(([id, mt, kelas]) => {
+    if (dari === "id" && kelas) id.forEach((x) => { if (!KELAS_ID.has(x.toLowerCase())) KELAS_ID.set(x.toLowerCase(), kelas); });
+    const [kunci, nilai] = dari === "id" ? [id, mt[0]] : [mt, id[0]];
+    kunci.forEach((k) => {
+      const kk = k.toLowerCase();
+      const arr = peta.get(kk) || [];
+      if (!arr.includes(nilai)) arr.push(nilai);
+      peta.set(kk, arr);
+    });
   });
   return peta;
 }
 
+function ambilArti(arr, frasa, ganda) {
+  if (arr.length > 1) ganda.push(frasa + " → " + arr.join(" / "));
+  return arr[0];
+}
+
+/* ==== MESIN IMBUHAN ==== */
+let IMBUHAN = [];   // dari imbuhan.csv
+let SANDHI = [];    // dari sandhi.csv
+let statusAturan = "";
+let KELAS_ID = new Map();   // kata Indonesia -> n / v / adj
+
+function normKelas(x) {
+  const k = (x || "").trim().toLowerCase();
+  if (["n", "nomina", "noun"].includes(k)) return "n";
+  if (["v", "verba", "verb"].includes(k)) return "v";
+  if (["adj", "adjektiva", "adjective"].includes(k)) return "adj";
+  return "";
+}
+
+// Mentawai: tempel awalan ke kata dasar, dengan aturan sandhi (luluh dll.)
+function tempelMTW(awalan, dasar) {
+  const r = SANDHI.find((x) => x.awalan === awalan && dasar.startsWith(x.awal_dasar));
+  if (!r) return awalan + dasar;
+  return r.awalan_jadi + (r.hapus_awal === "1" ? dasar.slice(r.awal_dasar.length) : dasar);
+}
+
+// Mentawai: lepas awalan (kebalikan sandhi); mengembalikan semua kemungkinan dasar
+function lepasMTW(kata) {
+  const hasil = [];
+  const urut = [...IMBUHAN].sort((a, b) => b.mentawai.length - a.mentawai.length);
+  for (const im of urut) {
+    const aw = im.mentawai;
+    const calon = new Set();
+    SANDHI.filter((x) => x.awalan === aw && kata.startsWith(x.awalan_jadi)).forEach((x) => {
+      const sisa = kata.slice(x.awalan_jadi.length);
+      calon.add(x.hapus_awal === "1" ? x.awal_dasar + sisa : sisa);
+    });
+    if (kata.startsWith(aw)) calon.add(kata.slice(aw.length));
+    calon.forEach((d) => { if (d.length > 1 && tempelMTW(aw, d) === kata) hasil.push({ im, dasar: d }); });
+  }
+  return hasil;
+}
+
+// Indonesia: bentuk berimbuhan (me-/pe- mengikuti huruf awal dasar)
+function bentukID(aw, d, nasal, ak) {
+  let h = aw + d;
+  if (nasal === "ya") {
+    const a = d[0];
+    if ("aiueoghkx".includes(a)) h = aw + "ng" + (a === "k" ? d.slice(1) : d);
+    else if ("bfv".includes(a)) h = aw + "m" + d;
+    else if (a === "p") h = aw + "m" + d.slice(1);
+    else if ("cdjz".includes(a)) h = aw + "n" + d;
+    else if (a === "t") h = aw + "n" + d.slice(1);
+    else if (a === "s") h = aw + "ny" + d.slice(1);
+  }
+  return h + (ak || "");
+}
+
+function rangkaiID(im, sub) {
+  if (im.jenis === "afiks") return bentukID(im.id, sub, im.nasal, im.akhiran);
+  if (im.jenis === "kata") return im.id + " " + sub;
+  return (im.makna ? im.makna + " " : "") + sub;
+}
+
+// Mentawai -> Indonesia untuk satu kata (langsung, atau lepas imbuhan lalu cari dasarnya)
+function artiMTW(kata, peta, depth = 2) {
+  const langsung = peta.get(kata);
+  if (langsung) return langsung[0];
+  if (depth === 0) return null;
+  for (const { im, dasar } of lepasMTW(kata)) {
+    const sub = artiMTW(dasar, peta, depth - 1);
+    if (sub !== null) return rangkaiID(im, sub);
+  }
+  return null;
+}
+
+// Indonesia: lepas awalan (dan akhiran untuk apitan), semua kemungkinan dasar
+const NASAL_ID = (b) => [[b, ""], [b + "nge", ""], [b + "ng", "k"], [b + "ng", ""], [b + "ny", "s"], [b + "n", "t"], [b + "n", ""], [b + "m", "p"], [b + "m", ""]];
+function lepasID(kata) {
+  const hasil = [], lihat = new Set();
+  const urut = IMBUHAN.filter((r) => r.jenis === "afiks")
+    .sort((a, b) => (b.id.length + (b.akhiran || "").length) - (a.id.length + (a.akhiran || "").length));
+  for (const im of urut) {
+    const ak = im.akhiran || "";
+    const kunci = im.id + "|" + ak;
+    if (lihat.has(kunci)) continue;
+    lihat.add(kunci);
+    if (ak && !kata.endsWith(ak)) continue;
+    const inti = ak ? kata.slice(0, -ak.length) : kata;
+    (im.nasal === "ya" ? NASAL_ID(im.id) : [[im.id, ""]]).forEach(([b, tambah]) => {
+      if (inti.startsWith(b) && inti.length > b.length) hasil.push({ im, dasar: tambah + inti.slice(b.length) });
+    });
+  }
+  return hasil;
+}
+
+// Indonesia -> Mentawai untuk satu kata
+function artiID(kata, peta, ganda, depth = 2) {
+  const langsung = peta.get(kata);
+  if (langsung) return langsung[0];
+  if (depth === 0) return null;
+  for (const { im, dasar } of lepasID(kata)) {
+    const sub = artiID(dasar, peta, ganda, depth - 1);
+    if (sub === null) continue;
+    let baris = IMBUHAN.filter((r) => r.jenis === "afiks" && r.id === im.id && (r.akhiran || "") === (im.akhiran || ""));
+    const kelas = KELAS_ID.get(dasar) || "";
+    const cocok = baris.filter((r) => !r.kelas_dasar || !kelas || r.kelas_dasar.split("|").includes(kelas));
+    if (cocok.length) baris = cocok;
+    const bentuk = baris.map((r) => tempelMTW(r.mentawai, sub));
+    if (bentuk.length > 1) ganda.push(kata + " → " + bentuk.join(" / "));
+    return bentuk[0];
+  }
+  return null;
+}
+
 function terjemah(teks, dari, ke) {
-  const peta = bangunKamus(dari, ke);
+  const peta = bangunKamus(dari);
   const token = teks.match(/[\p{L}\p{N}'’-]+|[^\p{L}\p{N}\s]|\s+/gu) || [];
   const kata = [];
-  const hasil = [];
-  let tidakAda = new Set();
-
-  // kumpulkan indeks token berupa kata
   token.forEach((t, i) => { if (/[\p{L}\p{N}]/u.test(t)) kata.push(i); });
+  const tidakAda = new Set(), ganda = [], diganti = {};
+  const cari = (w) => (dari === "id" ? artiID(w.toLowerCase(), peta, ganda) : artiMTW(w.toLowerCase(), peta));
 
   let k = 0;
-  const diganti = {};
   while (k < kata.length) {
+    const w = token[kata[k]].toLowerCase();
+    // 1. kata pengimbuh (sedang, yang, tanpa) + kata sesudahnya
+    const rk = dari === "id" && k + 1 < kata.length && IMBUHAN.find((r) => r.jenis === "kata" && r.id === w);
+    if (rk) {
+      const sub = cari(token[kata[k + 1]]);
+      if (sub !== null) {
+        diganti[kata[k]] = { akhir: kata[k + 1], teks: tempelMTW(rk.mentawai, sub) };
+        k += 2;
+        continue;
+      }
+    }
+    // 2. kata atau frasa langsung dari kamus
     let ketemu = false;
     for (let n = Math.min(MAKS_FRASA, kata.length - k); n >= 1; n--) {
       const frasa = kata.slice(k, k + n).map((i) => token[i]).join(" ").toLowerCase();
       if (peta.has(frasa)) {
-        diganti[kata[k]] = { akhir: kata[k + n - 1], teks: peta.get(frasa) };
+        diganti[kata[k]] = { akhir: kata[k + n - 1], teks: ambilArti(peta.get(frasa), frasa, ganda) };
         k += n; ketemu = true; break;
       }
     }
-    if (!ketemu) {
+    if (ketemu) continue;
+    // 3. bentuk berimbuhan
+    const h = cari(token[kata[k]]);
+    if (h !== null) diganti[kata[k]] = { akhir: kata[k], teks: h };
+    else {
       tidakAda.add(token[kata[k]]);
       diganti[kata[k]] = { akhir: kata[k], teks: "[" + token[kata[k]] + "]" };
-      k++;
     }
+    k++;
   }
 
+  const hasil = [];
   for (let i = 0; i < token.length; i++) {
     if (diganti[i]) { hasil.push(diganti[i].teks); i = diganti[i].akhir; }
     else hasil.push(token[i]);
   }
-  return { teks: hasil.join(""), tidakAda: [...tidakAda] };
+  return { teks: hasil.join(""), tidakAda: [...tidakAda], ganda };
 }
+
+async function muatAturan() {
+  try {
+    const baca = async (f) => {
+      const res = await fetch(f, { cache: "no-store" });
+      if (!res.ok) throw new Error(f + " HTTP " + res.status);
+      const t = bacaCSV((await res.text()).replace(/^\uFEFF/, ""));
+      const kepala = t[0].map((h) => h.trim().toLowerCase());
+      return t.slice(1).map((r) => Object.fromEntries(kepala.map((h, i) => [h, (r[i] || "").trim()])));
+    };
+    IMBUHAN = (await baca(SUMBER_IMBUHAN)).filter((r) => r.mentawai);
+    SANDHI = (await baca(SUMBER_SANDHI)).filter((r) => r.awalan);
+    statusAturan = IMBUHAN.length + " aturan imbuhan dimuat.";
+  } catch (e) {
+    statusAturan = "Aturan imbuhan tidak dimuat (" + e.message + ").";
+  }
+  perbarui();
+}
+/* ==== AKHIR MESIN IMBUHAN ==== */
 
 function perbarui() {
   const dari = $("sumber").value, ke = $("sasaran").value, teks = $("input").value;
   const info = $("info"), keluar = $("hasil");
   if (!dari || !ke) { keluar.value = ""; info.textContent = "Pilih bahasa sumber dan bahasa sasaran."; return; }
   if (dari === ke) { keluar.value = ""; info.textContent = "Bahasa sumber dan sasaran harus berbeda."; return; }
-  if (!teks.trim()) { keluar.value = ""; info.textContent = statusKamus; return; }
+  if (!teks.trim()) { keluar.value = ""; info.textContent = [statusKamus, statusAturan].filter(Boolean).join(" "); return; }
   const r = terjemah(teks, dari, ke);
   keluar.value = r.teks;
-  info.textContent = r.tidakAda.length
-    ? "Belum ada di kamus: " + r.tidakAda.join(", ")
-    : "Semua kata ditemukan di kamus.";
+  const bagian = [];
+  if (r.tidakAda.length) bagian.push("Belum ada di kamus: " + r.tidakAda.join(", "));
+  if (r.ganda.length) bagian.push("Bermakna ganda: " + r.ganda.join("; "));
+  info.textContent = bagian.length ? bagian.join(". ") : "Semua kata ditemukan di kamus.";
 }
 
 // jika kedua pilihan sama, balikkan yang satunya
@@ -385,6 +566,7 @@ pasangTautan($("saran"), LINK_SARAN, "Tautan saran dan kritik belum diisi.");
 pasangTautan($("kontribusi"), LINK_KONTRIBUSI, "Tautan kontribusi belum diisi.");
 
 muatKamus();
+muatAturan();
 </script>
 </body>
 </html>
