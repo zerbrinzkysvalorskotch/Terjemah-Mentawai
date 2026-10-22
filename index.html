@@ -87,10 +87,17 @@
   footer { margin-top: 64px; background: var(--footer); padding: 36px 0 48px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; justify-content: space-between; }
   .aksi { display: grid; gap: 10px; width: min(100%, 400px); }
-  .aksi button {
+  .aksi button, .aksi a {
     display: flex; justify-content: space-between; align-items: center; font: inherit; font-size: 1.15rem;
     padding: 6px 14px; background: var(--btn); color: var(--text); border: 1px solid var(--border); border-radius: 5px; cursor: pointer;
   }
+  a.kartu { text-decoration: none; color: inherit; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+  a.kartu:hover { transform: translateY(-3px); box-shadow: 0 10px 20px var(--shadow); }
+  .kartu.nonaktif { opacity: .55; justify-content: center; color: var(--muted); font-size: 1.05rem; }
+  .aksi a { text-decoration: none; }
+  .aksi a:hover { border-color: var(--accent); }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: .95rem; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; max-width: 90vw; text-align: center; }
+  #toast.tampil { opacity: 1; }
   .logo-mitra { display: flex; align-items: center; gap: 20px; }
   .logo-mitra .sil { width: 64px; height: 64px; background: #0b6bb5; color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 1.5rem; }
   .logo-mitra .elp { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 2.2rem; letter-spacing: -1px; }
@@ -147,22 +154,14 @@
   </section>
 
   <h3 class="judul">Buku dan Pustaka</h3>
-  <section class="buku">
-    <div class="kartu">
-      <svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg>
-      <div class="teks"><b>Gramatika Bahasa Mentawai</b><span>Bahasa Sumber</span></div>
-    </div>
-    <div class="kartu"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg></div>
-    <div class="kartu"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg></div>
-    <div class="kartu"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg></div>
-  </section>
+  <section class="buku" id="buku"></section>
 </div>
 
 <footer>
   <div class="wrap">
     <div class="aksi">
-      <button type="button">Saran dan kritik <span>›</span></button>
-      <button type="button">Kontribusi <span>›</span></button>
+      <a id="saran" class="tombol" href="#">Saran dan kritik <span>›</span></a>
+      <a id="kontribusi" class="tombol" href="#">Kontribusi <span>›</span></a>
     </div>
     <div class="logo-mitra" aria-label="Logo contoh mitra">
       <div class="sil">SIL</div>
@@ -170,6 +169,7 @@
     </div>
   </div>
 </footer>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ============================================================
@@ -183,6 +183,24 @@
 // Kolom wajib bernama: indonesia, mentawai
 const SUMBER_KAMUS = "kamus.csv";
 let statusKamus = "";
+
+/* ============================================================
+   TAUTAN — isi dengan link asli. Kosongkan ("") jika belum ada.
+   ============================================================ */
+// Tombol "Saran dan kritik": bisa link Google Form, halaman Issues GitHub,
+// atau alamat surel berbentuk "mailto:alamat@contoh.com"
+const LINK_SARAN = "";
+// Tombol "Kontribusi": misalnya halaman repo GitHub atau berkas CONTRIBUTING
+const LINK_KONTRIBUSI = "";
+
+// Daftar buku/panduan. Setiap kartu bisa dipencet dan membuka "url".
+// Slot tanpa judul tampil sebagai "Segera hadir".
+const BUKU = [
+  { judul: "Gramatika Bahasa Mentawai", ket: "Panduan bahasa", url: "" },
+  { judul: "", ket: "", url: "" },
+  { judul: "", ket: "", url: "" },
+  { judul: "", ket: "", url: "" }
+];
 
 // Kamus cadangan, dipakai hanya jika berkas/link gagal dimuat.
 let KAMUS = [
@@ -327,6 +345,45 @@ $("input").addEventListener("input", perbarui);
 // nilai awal: Indonesia → Mentawai
 $("sumber").value = "id";
 $("sasaran").value = "mtw";
+/* ---------- Buku, saran, kontribusi ---------- */
+const IKON_BUKU = '<svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 22 38 12l24 36-28 18z" fill="#e9a54f"/><path d="M20 24 38 17l19 30-21 13z" fill="#f0c070"/><path d="M34 60l22-12" stroke="#cfeff2" stroke-width="5"/></svg>';
+let waktuToast;
+function toast(pesan) {
+  const t = $("toast");
+  t.textContent = pesan;
+  t.classList.add("tampil");
+  clearTimeout(waktuToast);
+  waktuToast = setTimeout(() => t.classList.remove("tampil"), 2800);
+}
+
+function pasangTautan(el, url, pesanKosong) {
+  if (url) {
+    el.href = url;
+    if (!url.startsWith("mailto:")) { el.target = "_blank"; el.rel = "noopener noreferrer"; }
+  } else {
+    el.addEventListener("click", (e) => { e.preventDefault(); toast(pesanKosong); });
+  }
+}
+
+BUKU.forEach((b) => {
+  const kartu = document.createElement(b.judul ? "a" : "div");
+  kartu.className = "kartu" + (b.judul ? "" : " nonaktif");
+  if (b.judul) {
+    kartu.href = "#";
+    kartu.innerHTML = IKON_BUKU + '<div class="teks"><b></b><span></span></div>';
+    kartu.querySelector("b").textContent = b.judul;
+    kartu.querySelector("span").textContent = b.ket || "";
+    pasangTautan(kartu, b.url, "Tautan buku ini belum diisi.");
+  } else {
+    kartu.setAttribute("aria-disabled", "true");
+    kartu.textContent = "Segera hadir";
+  }
+  $("buku").appendChild(kartu);
+});
+
+pasangTautan($("saran"), LINK_SARAN, "Tautan saran dan kritik belum diisi.");
+pasangTautan($("kontribusi"), LINK_KONTRIBUSI, "Tautan kontribusi belum diisi.");
+
 muatKamus();
 </script>
 </body>
